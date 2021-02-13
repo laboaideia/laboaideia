@@ -1,31 +1,40 @@
 #!/usr/bin/bash
 
-if [ "$#" -ne 1 ]; then
-    echo "Uso: ${0} NUM_PC"
+# Os endereços IPês foram fixados via script[1] baseados em uma faixa de endereços IPv4 
+# não distribuídos pelo servidor DHCP do campus e ainda assim pertencente à faixa de 
+# endereços IPv4 disponibilizada para os laboratórios de informática do campus 
+# ({NET_ID}.0.0/16). Seguiu-se o modelo: <{NET_ID}.{SALA}.{PC}<, onde <{SALA}> é o número 
+# da sala (lab. 01, sala 48; lab 02, sala 51 etc.) e <{PC}> é o número do PC dentro do laboratório.
+#
+
+if [ "$#" -ne 2 ]; then
+    echo "Uso: ${0} LAB PC"
     exit 1
 fi
 
-echo $*
-
 #ADMIN="administrator"
-#DOMINIO="ifrn.local"
-PC=`printf %02d $1`
-HOSTID=$1
+DOMINIO="ifpar.lab"
+DNS1="10.214.0.155"
+CAMPUS="par"
+IFACE=$(ip -br link | awk '($1 ~ /^e/){print $1}' | head -1)
+LAB="$1"
+NET_ID="10.209.48"
+HOST_ID="$2"
+IP="${NET_ID}.${HOST_ID}"
+GATEWAY="${NET_ID}.1"  # Propenso a erro
+PCP=`printf %02d ${HOST_ID}` # Preenchimento com 0 à esquerda, quando necessário
 
+MAC=$(ip -br link show dev ${IFACE} | awk '{print $3}')
 
-MAC=$(ip -br link show dev eno1 | awk '{print $3}')
-IP="10.209.48.${HOSTID}"
 
 echo "Por gentileza, se autentique com sudo."
 sudo -v
 
-new_hostname="pc-${PC}-lab01par"
+new_hostname="pc-${PCP}-lab${LAB}${CAMPUS}"
 
 cat << EOF | sudo tee /etc/hosts
 127.0.0.1	localhost
 127.0.1.1	${new_hostname}
-10.214.0.155	parola.ifrn.local	parola
-
 
 # The following lines are desirable for IPv6 capable hosts
 ::1     ip6-localhost ip6-loopback
@@ -43,13 +52,13 @@ network:
   ethernets:
     eno1:
       dhcp4: no
-      addresses: [10.209.48.${HOSTID}/16]
-      gateway4: 10.209.0.1
+      addresses: [${IP}/16]
+      gateway4: ${GATEWWAY}
       nameservers:
         search: 
-            - ifrn.local
+            - ${DOMINIO}
         addresses:
-            - 10.214.0.155
+            - ${DNS1}
       
 EOF
 
@@ -81,7 +90,7 @@ sudo netplan apply
 
 sudo hostnamectl set-hostname ${new_hostname}
 
-wget https://oulu.ifrn.edu.br/lab/01/${IP}/${MAC}
+wget -O /dev/null https://oulu.ifrn.edu.br/lab/01/${IP}/${MAC}/
 sudo etckeeper commit "Pos-clonagem: end. IP fixo"
 
 # sudo realm join -U $ADMIN $DOMINIO
