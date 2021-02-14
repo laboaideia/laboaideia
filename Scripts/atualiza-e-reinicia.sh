@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# URL to register
+# URL to register the update
 URL="http://oulu.ifrn.edu.br/update/lab/redes/"
 
 # Date and time
