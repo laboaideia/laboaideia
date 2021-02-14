@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # URL to register the update
-URL="http://oulu.ifrn.edu.br/update/lab/redes/"
+URL="https://oulu.ifrn.edu.br/update/lab/redes/"
 
 # Date and time
 DATE=$(date +%F)
