@@ -4,7 +4,7 @@ if ($args.Length -eq 1) {
       Import-Csv -Path $arq_pacotes -Header Pacote | ForEach-Object {
          $pacote = $_.Pacote
          Write-Host "Instalando pacote $pacote ..."
-         winget install --id $pacote
+         winget install --scope machine --id $pacote
          if ($LastExitCode) {
             Write-Host "O pacote $pacote foi instalado com sucesso."
          }
