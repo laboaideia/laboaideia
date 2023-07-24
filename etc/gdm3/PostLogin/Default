@@ -1,28 +1,20 @@
-#!/usr/bin/env zsh
+#!/bin/sh
+#
+# Note: this is a sample and will not be run as is.  Change the name of this
+# file to <gdmconfdir>/PostLogin/Default for this script to be run.  This
+# script will be run before any setup is run on behalf of the user and is
+# useful if you for example need to do some setup to create a home directory
+# for the user or something like that.  $HOME, $LOGIN and such will all be
+# set appropriately and this script is run as root.
 
-grupos=adm,cdrom,docker,sudo,dip,plugdev,lpadmin,lxd,sambashare,wireshark
-arquivos=(group passwd shadow)
-nao_encontrado=false
-
-for arq in ${arquivos[@]}; do
-    if [ ! -e "${arq}" ]; then
-        echo "O arquivo ${arq} não foi encontrado."
-        nao_encontrado=true
-    fi
-done
-
-if $nao_encontrado; then
-    echo "Este script deve ser executado em um backup do diretório /etc."
-    exit 2
+if [ "${LOGNAME}" = "estudante" ]; then
+    rm -rf "${HOME}"
+    cd /home
+    tar zxf /var/lib/laboaideia/home/home-estudante.tgz
 fi
 
-professores=($(grep professor group | cut -d: -f5 | sed 's/,/ /g'))
-print -l $professores
+data_hora="$(date +%F_%T)"
+env >> "/tmp/post-login_${data_hora}_$$.sh"
 
-for prof in ${professores[@]}; do
-    gecos="$(grep -E "^${prof}:" passwd | cut -d: -f6)"
-    sudo useradd -m -b /home/professor -s /bin/zsh -c "${gecos}" "${prof}"
-    echo "${prof}:${password}" | sudo chpasswd -e
-    sudo usermod -aG "${grupos}" "${prof}"
-done < shadow
+exit 0
 
