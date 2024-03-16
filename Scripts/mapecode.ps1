@@ -31,8 +31,18 @@ $nomeCompleto = ([adsi]"WinNT://$dominio/$usuario,user").fullname
 # Divide o nome completo em primeiro nome e sobrenome
 $priNome, $sobrenome = $nomeCompleto.Split(" ", 2)
 
-# Solicita ao usuário o número do seu PC
+# Limpa o terminal
 Clear-Host
+
+# Obtém a hora atual para depois escolher a saudação apropriada
+$hora = (Get-Date).Hour
+$saudacao = if ($hora -ge 0 -and $hora -lt 12) { "Bom dia" } `
+            elseif ($hora -ge 12 -and $hora -lt 18) { "Boa tarde" } `
+            else { "Boa noite" }
+
+Write-Host "${saudacao}, ${priNome}!"
+
+# Solicita ao usuário o número do seu PC
 Write-Host "Por gentileza, levante-se e procure a etiqueta que tem o numero de seu PC."
 $numeroPC = Read-Host -Prompt "Qual eh o numero de seu PC"
 
