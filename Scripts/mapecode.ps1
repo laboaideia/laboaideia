@@ -22,6 +22,12 @@ $nomeComputador = $env:COMPUTERNAME
 $dominio = $env:USERDOMAIN
 $usuario = $env:USERNAME
 
+# Obtenção da rota padrão IPv4
+$rota_padrao_ipv4 = Get-NetRoute -AddressFamily IPv4 | Where-Object {$_.DestinationPrefix -eq '0.0.0.0/0'}
+
+# End. 
+$end_ipv4 = Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceIndex -eq $rota_padrao_ipv4.ifIndex}
+
 # Obtém a data atual no formato aaaa-MM-dd
 $data = Get-Date -Format "yyyy-MM-dd"
 
@@ -64,10 +70,22 @@ New-Item -ItemType Directory -Path $nomeDir
 # Altera o local para o novo diretório
 Set-Location $nomeDir
 
-# Cria um arquivo YAML com o número de matrícula do usuário e o nome completo
-"matricula: $usuario" | Set-Content "dados.yaml"
-"nome: $nomeCompleto" | Add-Content "dados.yaml"
-"computador: $nomeComputador" | Add-Content "dados.yaml"
+# Cria um arquivo JSON com o número de matrícula do usuário e o nome completo
+$estudante = @{
+    matricula = $usuario
+    nome = $nomeCompleto
+}
+$computador = @{
+    nome = $nomeComputador
+    ipv4 = $end_ipv4.IPAddress + "/" + $end_ipv4.PrefixLength
+}    
+
+$dados = @{
+    estudante = $estudante
+    computador = $computador
+}
+
+$dados | ConvertTo-Json | Out-File "dados.json"
 
 # Abre o diretório atual no Visual Studio Code
 code .
