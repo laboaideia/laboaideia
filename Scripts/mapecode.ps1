@@ -13,7 +13,7 @@ function Slugify-Texto {
     param ([String]$sourceStringToClean = [String]::Empty)
     $normalizedString = $sourceStringToClean.Normalize( [Text.NormalizationForm]::FormD )
     $stringBuilder = new-object Text.StringBuilder
-    $normalizedString.ToCharArray() | ForEach-Object { 
+    $normalizedString.ToCharArray() | ForEach-Object {
         if ( [Globalization.CharUnicodeInfo]::GetUnicodeCategory($_) -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
             [void]$stringBuilder.Append($_)
         }
@@ -24,15 +24,14 @@ function Slugify-Texto {
 }
 
 # Cria uma constante para guardar o nome do servidor
-Set-Variable -Name NOME_SERVIDOR -Value "PAR406756" -Option Constant
+Set-Variable -Name NOME_SERVIDOR -Value "PAR156008" -Option Constant
 
 # Cria uma constante para guardar a abreviação da disciplina
-Set-Variable -Name ABR_DISC -Value "alg-2024-m" -Option Constant
+Set-Variable -Name ABR_DISC -Value "gsi-2024-1" -Option Constant
 
 # Remove o drive P se ele existir para evitar erros ao criá-lo novamente
 Remove-PSDrive -Name "P" -ErrorAction SilentlyContinue
 
-Write-Host "Será que foi antes ou depois?"
 # Recupera nome do computador, domínio e nome de usuário das variáveis de ambiente
 $nomeComputador = $env:COMPUTERNAME
 $dominio = $env:USERDOMAIN
@@ -41,17 +40,20 @@ $usuario = $env:USERNAME
 # Obtenção da rota padrão IPv4
 $rota_padrao_ipv4 = Get-NetRoute -AddressFamily IPv4 | Where-Object {$_.DestinationPrefix -eq '0.0.0.0/0'}
 
-# End. 
+# End. IPv4 da interface com conexão à Internet
 $end_ipv4 = Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceIndex -eq $rota_padrao_ipv4.ifIndex}
 
 # Obtém a data atual no formato aaaa-MM-dd
 $data = Get-Date -Format "yyyy-MM-dd"
 
 # Obtém o nome completo do usuário do Active Directory
-$nomeCompleto = ([adsi]"WinNT://$dominio/$usuario,user").fullname
+$nomeCompleto = ([adsi]"WinNT://$dominio/$usuario,user").fullname[0]
 
 # Divide o nome completo em primeiro nome e sobrenome
-$priNome, $sobrenome = $nomeCompleto.Split(" ", 2)
+$priNomeCru, $sobrenome = $nomeCompleto.Split(" ", 2)
+$priLetra = $priNomeCru.ToUpper()[0]
+$outrasLetras = $priNomeCru.ToLower().Substring(1, $priNome.Length-1)
+$priNome = "${priLetra}${outrasLetras}"
 
 # Limpa o terminal
 Clear-Host
@@ -66,45 +68,73 @@ Write-Host "${saudacao}, ${priNome}!"
 
 # Solicita ao usuário o número do seu PC
 Write-Host "Por gentileza, levante-se e procure a etiqueta que tem o numero de seu PC."
+
 $numeroPC = Read-Host -Prompt "Qual eh o numero de seu PC"
+while (!($numero -match '^[0-9]+') -or ([int]$numeroPC -lt 1) -or ([int]$numeroPC -gt 30)) {
+        $numeroPC = Read-Host -Prompt "Qual eh o numero de seu PC"
+}
+
+# Nome do compartilhamento que depende do número do PC
+#$shName = If (([int]$numeroPC % 2) -eq 0) { "tico" } Else { "teco" }
 
 # Cria um novo drive P mapeado para o caminho de rede especificado, usando a variável de data atual
-New-PSDrive -Name "P" -PSProvider "FileSystem" -Root "\\${NOME_SERVIDOR}\${ABR_DISC}\aulas\aula-$data" -Persist
-
-# Altera o local atual para o drive P
-Set-Location "P:"
-
-# Cria um nome de diretório usando o número do PC e o primeiro nome, preenchendo o número do PC com zeros à esquerda
-$slugPriNome = Slugify-Text($priNome)
-$nomeDir = "PC-$($numeroPC.PadLeft(2, '0'))-$slugPriNome"
-
-# Cria o novo diretório caso ainda não exista
-# if (!(Test-Path -PathType Container $nomeDir)) {
-New-Item -ItemType Directory -Path $nomeDir
-# }
-
-
-# Altera o local para o novo diretório
-Set-Location $nomeDir
-
-# Cria um arquivo JSON com o número de matrícula do usuário e o nome completo
-$estudante = @{
-    matricula = $usuario
-    nome = $nomeCompleto
-    slug_nome = Slugify-Text($nomeCompleto)
-}
-$computador = @{
-    nome = $nomeComputador
-    ipv4 = $end_ipv4.IPAddress + "/" + $end_ipv4.PrefixLength
-    numero = $numeroPC
-}    
-
-$dados = @{
-    estudante = $estudante
-    computador = $computador
+if (!(Test-Path -Path "P:" -PathType Container)) {
+    $p = New-PSDrive -Name "P" -PSProvider "FileSystem" -Root "\\${NOME_SERVIDOR}\${ABR_DISC}\aulas\aula-$data" -Persist
 }
 
-$dados | ConvertTo-Json | Out-File "dados.json"
+if ((Test-Path -Path "P:" -PathType Container)) {
 
-# Abre o diretório atual no Visual Studio Code
-code .
+    # Altera o local atual para o drive P
+    Set-Location "P:"
+
+    # Registra a presença
+    Set-Location "lista-de-presenca"
+    $presencao = @{
+        matricula = $usuario
+        nome = $nomeCompleto
+        horario = Get-Date -UFormat "%F_%T"
+    }
+
+    # Cria um arquivo para registrar presença
+    $marcaTempo = Get-Date -UFormat "%Y%m%dT%H%M%S"
+    $nomeArq = "${marcaTempo}-${priNome}-${usuario}.json"
+    $presenca | Out-File -Name $nomeArq
+
+    Set-Location "P:"
+
+    # Cria um nome de diretório usando o número do PC e o primeiro nome, preenchendo o número do PC com zeros à esquerda
+    $slugPriNome = Slugify-Text($priNome)
+    $nomeDir = "PC-$($numeroPC.PadLeft(2, '0'))-$slugPriNome"
+
+    # Cria o novo diretório caso ainda não exista
+    # if (!(Test-Path -PathType Container $nomeDir)) {
+    New-Item -ItemType Directory -Path $nomeDir
+    # }
+
+
+    # Altera o local para o novo diretório
+    Set-Location $nomeDir
+
+    # Cria um arquivo JSON com dados do estudante e do computador
+    $estudante = @{
+        matricula = $usuario
+        nome = $nomeCompleto
+        slug_nome = Slugify-Text($nomeCompleto)
+    }
+    $computador = @{
+        nome = $nomeComputador
+        numero = $numeroPC
+        ipv4 = $end_ipv4.IPAddress + "/" + $end_ipv4.PrefixLength
+    }
+
+    $dados = @{
+        estudante = $estudante
+        computador = $computador
+    }
+
+    $dados | ConvertTo-Json | Out-File "dados.json"
+
+    # Abre o diretório atual no Visual Studio Code
+    code .
+
+}
