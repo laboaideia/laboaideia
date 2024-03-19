@@ -7,6 +7,22 @@
 # Observações: Este script é apenas para fins educacionais.
 # ---------------------------------------------------------------
 
+# Adaptado de: https://manueltgomes.com/microsoft/powershell/how-to-replace-accents-in-strings/
+function Slugify-Texto {
+    # From https://stackoverflow.com/questions/7836670/how-remove-accents-in-powershell
+    param ([String]$sourceStringToClean = [String]::Empty)
+    $normalizedString = $sourceStringToClean.Normalize( [Text.NormalizationForm]::FormD )
+    $stringBuilder = new-object Text.StringBuilder
+    $normalizedString.ToCharArray() | ForEach-Object { 
+        if ( [Globalization.CharUnicodeInfo]::GetUnicodeCategory($_) -ne [Globalization.UnicodeCategory]::NonSpacingMark) {
+            [void]$stringBuilder.Append($_)
+        }
+    }
+    # From https://lazywinadmin.com/2015/05/powershell-remove-diacritics-accents.html
+    $texto_sem_acento = [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($stringBuilder.ToString()))
+    $texto_sem_acento.ToLower().Replace(' ', '-')
+}
+
 # Cria uma constante para guardar o nome do servidor
 Set-Variable -Name NOME_SERVIDOR -Value "PAR406756" -Option Constant
 
@@ -59,7 +75,8 @@ New-PSDrive -Name "P" -PSProvider "FileSystem" -Root "\\${NOME_SERVIDOR}\${ABR_D
 Set-Location "P:"
 
 # Cria um nome de diretório usando o número do PC e o primeiro nome, preenchendo o número do PC com zeros à esquerda
-$nomeDir = "PC-$($numeroPC.PadLeft(2, '0'))-$priNome"
+$slugPriNome = Slugify-Text($priNome)
+$nomeDir = "PC-$($numeroPC.PadLeft(2, '0'))-$slugPriNome"
 
 # Cria o novo diretório caso ainda não exista
 # if (!(Test-Path -PathType Container $nomeDir)) {
@@ -74,10 +91,12 @@ Set-Location $nomeDir
 $estudante = @{
     matricula = $usuario
     nome = $nomeCompleto
+    slug_nome = Slugify-Text($nomeCompleto)
 }
 $computador = @{
     nome = $nomeComputador
     ipv4 = $end_ipv4.IPAddress + "/" + $end_ipv4.PrefixLength
+    numero = $numeroPC
 }    
 
 $dados = @{
