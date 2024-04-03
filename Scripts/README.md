@@ -4,4 +4,4 @@
 
 Grato a Gabriel Nascimento, João Gabriel e Vinícius Miranda
 da turma Info-2024-V pelo suporte e teste no desenvolvimento 
-do script <cria-contas-matricula-matricula.sh>.
+do script [cria-contas-matricula-matricula.sh](cria-contas-matricula-matricula.sh).
